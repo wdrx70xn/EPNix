@@ -1,53 +1,49 @@
 name: Update flake.lock
-on:
-  workflow_dispatch: # allows manual triggering
+'on':
+  workflow_dispatch: null
   schedule:
-    - cron: '0 0 * * 0' # runs weekly on Sunday at 00:00
-
-# WARNING:
-# When extending this action, be aware that $GITHUB_TOKEN allows write access to
-# the GitHub repository. This means that it should not evaluate user input in a
-# way that allows code injection.
-
+  - cron: 0 0 * * 0
 permissions:
   contents: read
-
 jobs:
   nix-matrix:
-    if: "github.repository_owner == 'epics-extensions'"
+    if: github.repository_owner == 'wdrx70xn'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
-      - id: set-matrix
-        run: |
-          set -Eeu
-          matrix="$(nix eval --json '.#lib.ci.update-flake-lock-matrix')"
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        persist-credentials: false
+    - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035
+    - id: set-matrix
+      run: 'set -Eeu
 
+        matrix="$(nix eval --json ''.#lib.ci.update-flake-lock-matrix'')"
+
+        echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+        '
   lockfile:
-    if: "github.repository_owner == 'epics-extensions'"
+    if: github.repository_owner == 'wdrx70xn'
     name: update-flake-lock (${{ matrix.branch }})
     needs: nix-matrix
     strategy:
       matrix: ${{fromJSON(needs.nix-matrix.outputs.matrix)}}
     permissions:
-      contents: write # to create branch
-      pull-requests: write # to create PR to backport
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ matrix.branch }}
-          persist-credentials: false
-      - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
-      - uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6 # v28
-        with:
-          branch: "update-flake-lock/${{ matrix.branch }}"
-          pr-title: "[${{ matrix.branch }}] Update flake.lock"
-          pr-labels: |
-            dependencies
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        ref: ${{ matrix.branch }}
+        persist-credentials: false
+    - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035
+    - uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6
+      with:
+        branch: update-flake-lock/${{ matrix.branch }}
+        pr-title: '[${{ matrix.branch }}] Update flake.lock'
+        pr-labels: 'dependencies
+
+          '
